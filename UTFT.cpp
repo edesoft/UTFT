@@ -322,11 +322,18 @@ void UTFT::setXY(word x1, word y1, word x2, word y2)
 {
 	if (orient==LANDSCAPE)
 	{
-		swap(word, x1, y1);
-		swap(word, x2, y2)
-		y1=disp_y_size-y1;
-		y2=disp_y_size-y2;
-		swap(word, y1, y2)
+		switch(display_model)
+		{
+#ifndef DISABLE_R61581
+	#include "tft_drivers/r61581/swopxy.h"
+#endif
+			default:
+				swap(word, x1, y1);
+				swap(word, x2, y2)
+				y1=disp_y_size-y1;
+				y2=disp_y_size-y2;
+				swap(word, y1, y2)
+		}
 	}
 
 	switch(display_model)
@@ -854,6 +861,7 @@ void UTFT::printChar(byte c, int x, int y)
 			setXY(x,y,x+cfont.x_size-1,y+cfont.y_size-1);
 	  
 			temp=((c-cfont.offset)*((cfont.x_size/8)*cfont.y_size))+4;
+			// loop each pixel, from left to right, then from top to buttom
 			for(j=0;j<((cfont.x_size/8)*cfont.y_size);j++)
 			{
 				ch=pgm_read_byte(&cfont.font[temp]);
@@ -873,27 +881,34 @@ void UTFT::printChar(byte c, int x, int y)
 		}
 		else
 		{
-			temp=((c-cfont.offset)*((cfont.x_size/8)*cfont.y_size))+4;
-
-			for(j=0;j<((cfont.x_size/8)*cfont.y_size);j+=(cfont.x_size/8))
+			switch(display_model)
 			{
-				setXY(x,y+(j/(cfont.x_size/8)),x+cfont.x_size-1,y+(j/(cfont.x_size/8)));
-				for (int zz=(cfont.x_size/8)-1; zz>=0; zz--)
+#ifndef DISABLE_R61581
+	#include "tft_drivers/r61581/printchar_landscape.h"
+#endif
+				default:
+				temp=((c-cfont.offset)*((cfont.x_size/8)*cfont.y_size))+4;
+
+				for(j=0;j<((cfont.x_size/8)*cfont.y_size);j+=(cfont.x_size/8))
 				{
-					ch=pgm_read_byte(&cfont.font[temp+zz]);
-					for(i=0;i<8;i++)
-					{   
-						if((ch&(1<<i))!=0)   
-						{
-							setPixel((fch<<8)|fcl);
-						} 
-						else
-						{
-							setPixel((bch<<8)|bcl);
-						}   
+					setXY(x,y+(j/(cfont.x_size/8)),x+cfont.x_size-1,y+(j/(cfont.x_size/8)));
+					for (int zz=0; zz<=(cfont.x_size/8)-1; zz++)
+					{
+						ch=pgm_read_byte(&cfont.font[temp+zz]);
+						for(i=0;i<8;i++)
+						{   
+							if((ch&(1<<(7-i)))!=0)   
+							{
+								setPixel((fch<<8)|fcl);
+							} 
+							else
+							{
+								setPixel((bch<<8)|bcl);
+							}   
+						}
 					}
+					temp+=(cfont.x_size/8);
 				}
-				temp+=(cfont.x_size/8);
 			}
 		}
 	}
